@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,16 +42,35 @@ const OnboardingForm = ({ industries }) => {
 
   const {
     register,
+    control,
     handleSubmit,
-    formState: { errors },
-    setValue,
     watch,
+    resetField,
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(onboardingSchema),
+    defaultValues: {
+      industry: "",
+      subIndustry: "",
+      experience: undefined,
+      skills: "",
+      bio: "",
+    },
   });
 
   const onSubmit = async (values) => {
-    console.log(values)
+    try {
+      const formattedIndustry = `${values.industry}-${values.subIndustry
+        .toLowerCase()
+        .replace(/ /g, "-")}`;
+
+      const result = await updateUserFn({
+        ...values,
+        industry: formattedIndustry,
+      });
+    } catch (error) {
+      console.error("Onboarding error:", error);
+    }
   };
 
   useEffect(() => {
@@ -66,7 +85,7 @@ const OnboardingForm = ({ industries }) => {
 
   return (
     <div className="flex items-center justify-center bg-background">
-      <Card className="w-full max-w-lg mt-10 mx-2">
+      <Card className="w-full max-w-lg mx-2">
         <CardHeader>
           <CardTitle className="gradient-title text-4xl">
             Complete Your Profile
@@ -80,29 +99,47 @@ const OnboardingForm = ({ industries }) => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
-              <Select
-                onValueChange={(value) => {
-                  setValue("industry", value);
-                  setSelectedIndustry(
-                    industries.find((ind) => ind.id === value)
-                  );
-                  setValue("subIndustry", "");
-                }}
-              >
-                <SelectTrigger id="industry">
-                  <SelectValue placeholder="Select an industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Industries</SelectLabel>
-                    {industries.map((ind) => (
-                      <SelectItem key={ind.id} value={ind.id}>
-                        {ind.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+
+              <Controller
+                name="industry"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+
+                      const industry = industries.find(
+                        (ind) => ind.id === value
+                      );
+
+                      setSelectedIndustry(industry);
+                      resetField("subIndustry");
+                    }}
+                  >
+                    <SelectTrigger id="industry" className="w-full">
+                      <SelectValue>
+                        {selectedIndustry
+                          ? selectedIndustry.name
+                          : "Select an industry"}
+                      </SelectValue>
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Industries</SelectLabel>
+
+                        {industries.map((ind) => (
+                          <SelectItem key={ind.id} value={ind.id}>
+                            {ind.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+
               {errors.industry && (
                 <p className="text-sm text-red-500">
                   {errors.industry.message}
@@ -113,23 +150,37 @@ const OnboardingForm = ({ industries }) => {
             {watchIndustry && (
               <div className="space-y-2">
                 <Label htmlFor="subIndustry">Specialization</Label>
-                <Select
-                  onValueChange={(value) => setValue("subIndustry", value)}
-                >
-                  <SelectTrigger id="subIndustry">
-                    <SelectValue placeholder="Select your specialization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Specializations</SelectLabel>
-                      {selectedIndustry?.subIndustries.map((sub) => (
-                        <SelectItem key={sub} value={sub}>
-                          {sub}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+
+                <Controller
+                  name="subIndustry"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger
+                        id="subIndustry"
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="Select your specialization" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Specializations</SelectLabel>
+
+                          {selectedIndustry?.subIndustries.map((sub) => (
+                            <SelectItem key={sub} value={sub}>
+                              {sub}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+
                 {errors.subIndustry && (
                   <p className="text-sm text-red-500">
                     {errors.subIndustry.message}
@@ -146,7 +197,9 @@ const OnboardingForm = ({ industries }) => {
                 min="0"
                 max="50"
                 placeholder="Enter years of experience"
-                {...register("experience")}
+                {...register("experience", {
+                  valueAsNumber: true,
+                })}
               />
               {errors.experience && (
                 <p className="text-sm text-red-500">
@@ -183,7 +236,7 @@ const OnboardingForm = ({ industries }) => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={updateLoading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={updateLoading}>
               {updateLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

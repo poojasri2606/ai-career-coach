@@ -3,6 +3,7 @@ import { getUserOnboardingStatus } from '@/actions/user';
 import OnboardingForm from './_components/onboarding-form';
 import { industries } from '@/data/industries'
 import React from 'react'
+import { redirect } from "next/navigation";
 
 export default async function OnboardingPage() {
   // Check if user is already onboarded

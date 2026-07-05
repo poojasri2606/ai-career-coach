@@ -3,72 +3,90 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-
+import { generateAIInsights } from "./dashboard";
 
 export async function updateUser(data) {
   const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
 
   const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
+    where: {
+      clerkUserId: userId,
+    },
+    include: {
+      industryInsight: true,
+    }
   });
 
-  if (!user) throw new Error("User not found");
+  if (!user) {
+    throw new Error("User not found");
+  }
 
   try {
-    // Start a transaction to handle both operations
-    const result = await db.$transaction(
-      async (tx) => {
-        // First check if industry exists
-        let industryInsight = await tx.industryInsight.findUnique({
-          where: {
-            industry: data.industry,
-          },
-        });
+    // Step 1: Check if insights already exist
+    let industryInsight = await db.industryInsight.findUnique({
+      where: {
+        industry: data.industry,
+      },
+    });
 
-        // If industry doesn't exist, create it with default values
-        if (!industryInsight) {
+    // Step 2: Generate AI insights BEFORE transaction
+    let insights = null;
 
-          industryInsight = await tx.industryInsight.create({
-            data: {
-              industry: data.industry,
-              salaryRanges:[],
-              growthRate: 0,
-              demandLevel:"MEDIUM",
-              topSkills:[],
-              marketOutlook:"NEUTRAL",
-              kryTrends:[],
-              recommendedSkills:[],
-              nextUpdate:new Date(Date.now()+7*24*60*1000)
-            },
-          });
-        }
+    if (!industryInsight) {
+      insights = await generateAIInsights(data.industry);
+    }
 
-        // Now update the user
-        const updatedUser = await tx.user.update({
-          where: {
-            id: user.id,
-          },
+    // Step 3: Start transaction
+    const result = await db.$transaction(async (tx) => {
+      let savedIndustryInsight = industryInsight;
+
+      // Create industry insight if it doesn't exist
+      if (!savedIndustryInsight) {
+        savedIndustryInsight = await tx.industryInsight.create({
           data: {
             industry: data.industry,
-            experience: data.experience,
-            bio: data.bio,
-            skills: data.skills,
+            ...insights,
+            nextUpdate: new Date(
+              Date.now() + 7 * 24 * 60 * 60 * 1000
+            ),
           },
         });
-
-        return { updatedUser, industryInsight };
-      },
-      {
-        timeout: 10000, // default: 5000
       }
-    );
+
+      // Update user profile
+      const updatedUser = await tx.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          industry: data.industry,
+          experience: data.experience,
+          bio: data.bio,
+          skills: data.skills,
+        },
+      });
+
+      return {
+        updatedUser,
+        industryInsight: savedIndustryInsight,
+      };
+    });
 
     revalidatePath("/");
-    return {success:true, ...result};
+
+    return result.updatedUser;
   } catch (error) {
-    console.error("Error updating user and industry:", error.message);
-    throw new Error("Failed to update profile");
+    console.error("Update User Error:", error);
+
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to update profile"
+    );
   }
 }
 

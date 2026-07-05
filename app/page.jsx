@@ -170,7 +170,7 @@ export default function Home() {
           </div>
 
           <div className="max-w-3xl mx-auto">
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" className="w-full">
               {faqs.map((faq, index) => (
                 <AccordionItem key={index} value={`item-${index}`}>
                   <AccordionTrigger className="text-left">
@@ -191,7 +191,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold tracking-tighter text-primary-foreground sm:text-4xl md:text-5xl">
               Ready to Accelerate Your Career?
             </h2>
-            <p className="mx-auto max-w-[600px] text-primary-foreground/80 md:text-xl">
+            <p className="mx-auto max-w-150 text-primary-foreground/80 md:text-xl">
               Join thousands of professionals who are advancing their careers
               with AI-powered guidance.
             </p>
