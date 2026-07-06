@@ -31,12 +31,13 @@ const Header = async () => {
             </Link>
 
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button>
-                  <StarsIcon className='h-4 w-4' /> <span className='hidden md:block cursor-pointer'>Growth Tools</span>
-                  <ChevronDown className='h-4 w-4' />
-                </Button>
-              </DropdownMenuTrigger>
+              <DropdownMenuTrigger
+  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+>
+  <StarsIcon className="h-4 w-4" />
+  <span className="hidden md:block">Growth Tools</span>
+  <ChevronDown className="h-4 w-4" />
+</DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem>
                   <Link href={"/resume"} className="flex items-center gap-2">
